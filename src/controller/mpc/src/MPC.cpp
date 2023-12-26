@@ -1,20 +1,6 @@
-/**
- * @file MPCExample.cpp
- * @author Giulio Romualdi
- * @copyright Released under the terms of the BSD 3-Clause License
- * @date 2018
- */
+#include "MPC.hpp"
 
-// osqp-eigen
-#include "OsqpEigen/OsqpEigen.h"
-
-// eigen
-#include <Eigen/Dense>
-
-
-#include <iostream>
-
-void setDynamicsMatrices(Eigen::Matrix<double, 12, 12>& a, Eigen::Matrix<double, 12, 4>& b)
+void MPC::setDynamicsMatrices(Eigen::Matrix<double, 12, 12>& a, Eigen::Matrix<double, 12, 4>& b)
 {
     a << 1., 0., 0., 0., 0., 0., 0.1, 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.1, 0., 0.,
         0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.1, 0., 0., 0., 0.0488, 0., 0., 1., 0., 0., 0.0016,
@@ -30,7 +16,7 @@ void setDynamicsMatrices(Eigen::Matrix<double, 12, 12>& a, Eigen::Matrix<double,
         -0.0236, 0., 0.0236, 0.0236, 0., -0.0236, 0., 0.2107, 0.2107, 0.2107, 0.2107;
 }
 
-void setInequalityConstraints(Eigen::Matrix<double, 12, 1>& xMax,
+void MPC::setInequalityConstraints(Eigen::Matrix<double, 12, 1>& xMax,
                               Eigen::Matrix<double, 12, 1>& xMin,
                               Eigen::Matrix<double, 4, 1>& uMax,
                               Eigen::Matrix<double, 4, 1>& uMin)
@@ -52,13 +38,13 @@ void setInequalityConstraints(Eigen::Matrix<double, 12, 1>& xMax,
         OsqpEigen::INFTY, OsqpEigen::INFTY;
 }
 
-void setWeightMatrices(Eigen::DiagonalMatrix<double, 12>& Q, Eigen::DiagonalMatrix<double, 4>& R)
+void MPC::setWeightMatrices(Eigen::DiagonalMatrix<double, 12>& Q, Eigen::DiagonalMatrix<double, 4>& R)
 {
     Q.diagonal() << 0, 0, 10., 10., 10., 10., 0, 0, 0, 5., 5., 5.;
     R.diagonal() << 0.1, 0.1, 0.1, 0.1;
 }
 
-void castMPCToQPHessian(const Eigen::DiagonalMatrix<double, 12>& Q,
+void MPC::castMPCToQPHessian(const Eigen::DiagonalMatrix<double, 12>& Q,
                         const Eigen::DiagonalMatrix<double, 4>& R,
                         int mpcWindow,
                         Eigen::SparseMatrix<double>& hessianMatrix)
@@ -86,7 +72,7 @@ void castMPCToQPHessian(const Eigen::DiagonalMatrix<double, 12>& Q,
     }
 }
 
-void castMPCToQPGradient(const Eigen::DiagonalMatrix<double, 12>& Q,
+void MPC::castMPCToQPGradient(const Eigen::DiagonalMatrix<double, 12>& Q,
                          const Eigen::Matrix<double, 12, 1>& xRef,
                          int mpcWindow,
                          Eigen::VectorXd& gradient)
@@ -105,7 +91,7 @@ void castMPCToQPGradient(const Eigen::DiagonalMatrix<double, 12>& Q,
     }
 }
 
-void castMPCToQPConstraintMatrix(const Eigen::Matrix<double, 12, 12>& dynamicMatrix,
+void MPC::castMPCToQPConstraintMatrix(const Eigen::Matrix<double, 12, 12>& dynamicMatrix,
                                  const Eigen::Matrix<double, 12, 4>& controlMatrix,
                                  int mpcWindow,
                                  Eigen::SparseMatrix<double>& constraintMatrix)
@@ -148,7 +134,7 @@ void castMPCToQPConstraintMatrix(const Eigen::Matrix<double, 12, 12>& dynamicMat
     }
 }
 
-void castMPCToQPConstraintVectors(const Eigen::Matrix<double, 12, 1>& xMax,
+void MPC::castMPCToQPConstraintVectors(const Eigen::Matrix<double, 12, 1>& xMax,
                                   const Eigen::Matrix<double, 12, 1>& xMin,
                                   const Eigen::Matrix<double, 4, 1>& uMax,
                                   const Eigen::Matrix<double, 4, 1>& uMin,
@@ -188,7 +174,7 @@ void castMPCToQPConstraintVectors(const Eigen::Matrix<double, 12, 1>& xMax,
     upperBound << upperEquality, upperInequality;
 }
 
-void updateConstraintVectors(const Eigen::Matrix<double, 12, 1>& x0,
+void MPC::updateConstraintVectors(const Eigen::Matrix<double, 12, 1>& x0,
                              Eigen::VectorXd& lowerBound,
                              Eigen::VectorXd& upperBound)
 {
@@ -196,7 +182,7 @@ void updateConstraintVectors(const Eigen::Matrix<double, 12, 1>& x0,
     upperBound.block(0, 0, 12, 1) = -x0;
 }
 
-double getErrorNorm(const Eigen::Matrix<double, 12, 1>& x, const Eigen::Matrix<double, 12, 1>& xRef)
+double MPC::getErrorNorm(const Eigen::Matrix<double, 12, 1>& x, const Eigen::Matrix<double, 12, 1>& xRef)
 {
     // evaluate the error
     Eigen::Matrix<double, 12, 1> error = x - xRef;
@@ -204,37 +190,10 @@ double getErrorNorm(const Eigen::Matrix<double, 12, 1>& x, const Eigen::Matrix<d
     // return the norm
     return error.norm();
 }
-
-int main()
-{
-    // set the preview window
-    int mpcWindow = 20;
-
-    // allocate the dynamics matrices
-    Eigen::Matrix<double, 12, 12> a;
-    Eigen::Matrix<double, 12, 4> b;
-
-    // allocate the constraints vector
-    Eigen::Matrix<double, 12, 1> xMax;
-    Eigen::Matrix<double, 12, 1> xMin;
-    Eigen::Matrix<double, 4, 1> uMax;
-    Eigen::Matrix<double, 4, 1> uMin;
-
-    // allocate the weight matrices
-    Eigen::DiagonalMatrix<double, 12> Q;
-    Eigen::DiagonalMatrix<double, 4> R;
-
-    // allocate the initial and the reference state space
-    Eigen::Matrix<double, 12, 1> x0;
-    Eigen::Matrix<double, 12, 1> xRef;
-
-    // allocate QP problem matrices and vectores
-    Eigen::SparseMatrix<double> hessian;
-    Eigen::VectorXd gradient;
-    Eigen::SparseMatrix<double> linearMatrix;
-    Eigen::VectorXd lowerBound;
-    Eigen::VectorXd upperBound;
-
+bool MPC::init()
+{   
+    mpcWindow = 20;
+    numberOfSteps = 50;
     // set the initial and the desired states
     x0 << 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0;
     xRef << 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0;
@@ -249,9 +208,6 @@ int main()
     castMPCToQPGradient(Q, xRef, mpcWindow, gradient);
     castMPCToQPConstraintMatrix(a, b, mpcWindow, linearMatrix);
     castMPCToQPConstraintVectors(xMax, xMin, uMax, uMin, x0, mpcWindow, lowerBound, upperBound);
-
-    // instantiate the solver
-    OsqpEigen::Solver solver;
 
     // settings
     // solver.settings()->setVerbosity(false);
@@ -275,16 +231,18 @@ int main()
     if (!solver.initSolver())
         return 1;
 
-    // controller input and QPSolution vector
-    Eigen::Vector4d ctr;
-    Eigen::VectorXd QPSolution;
+    return 0;
+}
 
-    // number of iteration steps
-    int numberOfSteps = 50;
+bool MPC::solveProblem()
+{
 
-    for (int i = 0; i < numberOfSteps; i++)
-    {
-
+    // for (int i = 0; i < numberOfSteps; i++)
+    // {
+        std::cout<<"xRef: "<<xRef.transpose()<<std::endl;
+        
+        
+        
         // solve the QP problem
         if (solver.solveProblem() != OsqpEigen::ErrorExitFlag::NoError)
             return 1;
@@ -294,18 +252,41 @@ int main()
         ctr = QPSolution.block(12 * (mpcWindow + 1), 0, 4, 1);
 
         // save data into file
-        auto x0Data = x0.data();
+        //auto x0Data = x0.data();
 
         // propagate the model
         x0 = a * x0 + b * ctr;
-        
+
         // update the constraint bound
         updateConstraintVectors(x0, lowerBound, upperBound);
+        
         if (!solver.updateBounds(lowerBound, upperBound))
             return 1;
-    }
 
-    
+        castMPCToQPGradient(Q, xRef, mpcWindow, gradient);
+        if (solver.updateGradient(gradient))
+            return 1;
 
-    return 0;
+        
+
+        return 0;
+    //}
 }
+
+Eigen::Matrix<double, 12, 1> MPC::getStates()
+{
+    return x0;
+}
+
+Eigen::Vector4d MPC::getCtr()
+{
+    return ctr;
+}
+
+void MPC::setRef(Eigen::Matrix<double, 12, 1> dx)
+{
+    xRef = dx;
+}
+
+
+
